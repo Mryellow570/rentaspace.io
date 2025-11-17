@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rent-A-Space | Local Storage</title>
+
+<!-- Bootstrap -->
+<link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+
+<!-- Leaflet CSS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+<style>
+:root {
+    --primary-color: black;
+    --accent-color: #e8111a;
+    --background-color: #ffffff;
+}
+
+body {
+    margin:0;
+    padding:0;
+    background-color: var(--background-color);
+    font-family: Arial, sans-serif;
+    color: var(--primary-color);
+    opacity: 0;
+    transition: opacity 0.6s;
+}
+body.loaded { opacity:1; }
+
+/* NAVBAR */
+.navbar-custom { background-color: var(--primary-color); padding:10px; position:fixed; width:100%; top:0; z-index:999; color:var(--accent-color); }
+.navbar-brand-custom { color: var(--accent-color); font-size:28px; font-weight:bold; position:absolute; left:50%; transform:translateX(-50%); }
+.navbar-toggler-icon-custom { width:35px; height:4px; background-color: var(--accent-color); margin:4px 0; }
+.dropdown-menu-custom,.profile-dropdown-menu { display:none; position:absolute; background:white; border-radius:6px; box-shadow:0px 4px 8px rgba(0,0,0,0.1); }
+.dropdown-menu-custom.show,.profile-dropdown-menu.show { display:block; }
+.dropdown-item-custom { padding:12px 20px; color:var(--primary-color); display:block; text-decoration:none; }
+.dropdown-item-custom:hover { background-color: var(--accent-color); color:white; }
+
+/* HERO */
+.hero-section { height:60vh; width:100%; position:relative; overflow:hidden; }
+.hero-section img { height:100%; width:100%; object-fit:cover; filter:brightness(60%); }
+.overlay-text {
+    position:absolute; top:50%; left:50%; transform:translate(-50%, -50%) scale(0.8);
+    font-size: clamp(48px,12vw,120px); font-weight:bold; color: var(--accent-color);
+    text-align:center; text-shadow:0 0 20px rgba(0,0,0,0.8); white-space: nowrap;
+    opacity:0; animation: fadeInScale 1.5s forwards;
+}
+@keyframes fadeInScale { to { opacity:1; transform:translate(-50%, -50%) scale(1); } }
+
+/* CONTENT */
+.content-container { padding-top:30px; background-color: var(--background-color); }
+.map-container { height:400px; width:100%; margin-bottom:20px; }
+.listings-container { display:flex; flex-direction:column; gap:15px; margin-top:10px; }
+.listing-card { background:white; color:black; padding:15px; border-radius:10px; box-shadow:0px 3px 8px rgba(0,0,0,0.2); display:flex; gap:15px; align-items:center; }
+.listing-card img { width:120px; height:80px; border-radius:8px; object-fit:cover; }
+.listing-info h5 { margin:0; color: var(--accent-color); }
+.listing-info p { margin:0.2rem 0; font-size:0.9rem; }
+
+/* FOOTER */
+.footer { background-color: var(--primary-color); color: var(--accent-color); padding:40px 0; margin-top:40px; }
+.footer-links a { color: var(--accent-color); text-decoration:none; margin-bottom:8px; display:block; }
+.footer-links a:hover { text-decoration: underline; }
+
+</style>
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+
+<body>
+<nav class="navbar navbar-custom">
+    <button class="navbar-toggler" onclick="toggleDropdown()" style="background:none;border:none;">
+        <div class="navbar-toggler-icon-custom"></div>
+        <div class="navbar-toggler-icon-custom"></div>
+        <div class="navbar-toggler-icon-custom"></div>
+    </button>
+    <div class="navbar-brand navbar-brand-custom">Rent-A-Space</div>
+    <div class="profile-icon-container" onclick="toggleProfileDropdown()" style="cursor:pointer;position:absolute;right:15px;top:10px;">
+        <img src="https://cdn-icons-png.flaticon.com/512/456/456212.png" width="40">
+    </div>
+    <div class="dropdown-menu-custom" id="dropdown-menu" style="top:55px;left:10px;">
+        <a class="dropdown-item-custom" href="mainpage.html">Home</a>
+        <a class="dropdown-item-custom" href="localstorage.html">Unit Sizes</a>
+        <a class="dropdown-item-custom" href="compareprices.html">Pricing</a>
+        <a class="dropdown-item-custom" href="reserve.html">Reserve a Unit</a>
+    </div>
+    <div class="profile-dropdown-menu" id="profile-dropdown" style="top:55px;right:10px;">
+        <a class="dropdown-item-custom" href="#">Account</a>
+        <a class="dropdown-item-custom" href="#">Log Out</a>
+    </div>
+</nav>
+
+<div class="hero-section">
+    <img src="storagehero.jpg" alt="Storage Units">
+    <div class="overlay-text">Local Storage</div>
+</div>
+
+<div class="content-container container">
+    <h3>Click on the map to see available storage spaces near you</h3>
+    <div id="map" class="map-container"></div>
+    <div id="listings" class="listings-container"></div>
+</div>
+
+<div class="footer">
+    <div class="container">
+        <h3>Rent-A-Space</h3>
+        <div class="footer-links">
+            <a href="compareprices.html">Pricing</a>
+            <a href="localstorage.html">Locations</a>
+            <a href="reserve.html">Corporate Storage</a>
+            <a href="#">Customer Support</a>
+        </div>
+        <p style="margin-top:20px;">© 2025 Rent-A-Space. All Rights Reserved.</p>
+    </div>
+</div>
+
+<script>
+document.body.classList.add('loaded');
+
+function toggleDropdown() { document.getElementById("dropdown-menu").classList.toggle("show"); }
+function toggleProfileDropdown() { document.getElementById("profile-dropdown").classList.toggle("show"); }
+
+// Initialize map
+const map = L.map('map').setView([40.0583, -74.4057], 10); // New Jersey
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution:'&copy; OpenStreetMap contributors' }).addTo(map);
+
+let currentCircle = null;
+let currentMarker = null;
+
+// Utility: Random within radius (~16km for 10mi)
+function randomOffset(radiusKm) {
+    const r = radiusKm/111 * Math.sqrt(Math.random()); // approx degree offset
+    const theta = Math.random() * 2*Math.PI;
+    const dx = r * Math.cos(theta);
+    const dy = r * Math.sin(theta);
+    return [dx, dy];
+}
+
+// Generate fake listings
+function generateListings(lat, lng) {
+    const fakeHosts = ["John's Garage","Lisa's Shed","Mike's Storage Spot","Anna's Attic","Tom's Storage"];
+    const fakeCities = ["Newark","Jersey City","Hoboken","Paterson","Elizabeth"];
+    const fakeStreets = ["Maple St","Oak Ave","Pine Rd","Cedar Blvd","Elm St"];
+    const fakeDescriptions = [
+        "Secure garage with shelving and easy access. Perfect for short-term dorm storage.",
+        "Covered shed, climate-controlled, safe neighborhood.",
+        "Spacious garage, easy loading, monitored by security camera.",
+        "Clean storage space, 24/7 access, perfect for small furniture.",
+        "Affordable unit with shelving and quick neighborhood access."
+    ];
+    const fakePrices = [12,15,20];
+
+    let listings = [];
+    for(let i=0;i<3;i++){
+        const offset = randomOffset(16); // 10 miles ~ 16 km
+        listings.push({
+            name: fakeHosts[i],
+            address: `${Math.floor(Math.random()*999)} ${fakeStreets[i]}`,
+            city: fakeCities[i],
+            state: "NJ",
+            desc: fakeDescriptions[i],
+            img: "https://via.placeholder.com/120x80",
+            price: "$" + fakePrices[Math.floor(Math.random()*fakePrices.length)] + " per day",
+            lat: lat+offset[0],
+            lng: lng+offset[1]
+        });
+    }
+    return listings;
+}
+
+// Show listings in DOM
+function showListings(listings) {
+    const container = document.getElementById('listings');
+    container.innerHTML = '';
+    listings.forEach(listing => {
+        const card = document.createElement('div');
+        card.className = 'listing-card';
+        card.innerHTML = `
+            <img src="${listing.img}" alt="Storage Image">
+            <div class="listing-info">
+                <h5>${listing.name}</h5>
+                <p>${listing.address}, ${listing.city}, ${listing.state}</p>
+                <p>${listing.desc}</p>
+                <p><strong>${listing.price}</strong></p>
+            </div>
+        `;
+        container.appendChild(card);
+    });
+}
+
+// Map click event
+map.on('click', function(e){
+    const lat = e.latlng.lat;
+    const lng = e.latlng.lng;
+
+    // Remove previous circle & marker
+    if(currentCircle) map.removeLayer(currentCircle);
+    if(currentMarker) map.removeLayer(currentMarker);
+
+    // Add marker & circle
+    currentMarker = L.marker([lat,lng]).addTo(map);
+    currentCircle = L.circle([lat,lng], { radius:16093, color:'red', fillOpacity:0.1 }).addTo(map); // 10 mi = ~16 km
+
+    const listings = generateListings(lat,lng);
+    showListings(listings);
+});
+</script>
+</body>
+</html>
